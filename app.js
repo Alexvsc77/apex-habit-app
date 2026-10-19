@@ -4,6 +4,8 @@ const STORAGE_KEY = "mrz-habit-tracker-v1";
 const LEGACY_STORAGE_KEY = "apex-habit-tracker-v1";
 const BACKUP_FORMAT = "mrz-habit-tracker-backup";
 const LEGACY_BACKUP_FORMAT = "apex-habit-tracker-backup";
+const SYNC_META_KEY = "mrz-habit-tracker-sync-v1";
+const CLOUD_CONFIG_PATH = "./cloud-config.json";
 const WEEKDAYS = [
   { value: 1, short: "Пн", full: "понедельник" },
   { value: 2, short: "Вт", full: "вторник" },
@@ -52,6 +54,18 @@ const elements = {
   exportBackup: document.querySelector("#export-backup"),
   importBackup: document.querySelector("#import-backup"),
   backupFile: document.querySelector("#backup-file"),
+  storageNote: document.querySelector("#storage-note"),
+  authForm: document.querySelector("#auth-form"),
+  authEmail: document.querySelector("#auth-email"),
+  authPassword: document.querySelector("#auth-password"),
+  authSignIn: document.querySelector("#auth-sign-in"),
+  authSignUp: document.querySelector("#auth-sign-up"),
+  authSignOut: document.querySelector("#auth-sign-out"),
+  signedInControls: document.querySelector("#signed-in-controls"),
+  signedInEmail: document.querySelector("#signed-in-email"),
+  syncNow: document.querySelector("#sync-now"),
+  syncStatus: document.querySelector("#sync-status"),
+  syncIndicator: document.querySelector("#sync-indicator"),
   goalDialog: document.querySelector("#goal-dialog"),
   goalForm: document.querySelector("#goal-form"),
   goalDialogTitle: document.querySelector("#goal-dialog-title"),
@@ -83,6 +97,15 @@ let editingGoalId = null;
 let goalType = "main";
 let selectedGoalYear = new Date().getFullYear();
 let toastTimer = null;
+let cloudClient = null;
+let cloudUser = null;
+let cloudRevision = 0;
+let cloudReady = false;
+let cloudBusy = false;
+let authLoading = false;
+let syncPending = false;
+let syncConflict = false;
+let syncTimer = null;
 
 function dateKey(date) {
   const year = date.getFullYear();
@@ -180,10 +203,11 @@ function clampScore(value) {
   return Number.isFinite(number) ? Math.max(0, Math.min(10, Math.round(number))) : 0;
 }
 
-function saveState() {
+function saveState({ sync = true } = {}) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     renderBackupCounts();
+    if (sync) queueCloudSync();
     return true;
   } catch (error) {
     console.warn("Не удалось сохранить данные.", error);
@@ -818,7 +842,10 @@ async function restoreBackup(file) {
       return;
     }
     const count = `${backup.data.habits.length} привычек и ${backup.data.goals.length} целей`;
-    if (!window.confirm(`Восстановить копию (${count})? Текущие данные в этом браузере будут заменены.`)) {
+    const destination = cloudUser
+      ? "Текущие данные в этом браузере будут заменены, затем новая копия синхронизируется с облаком."
+      : "Текущие данные в этом браузере будут заменены.";
+    if (!window.confirm(`Восстановить копию (${count})? ${destination}`)) {
       setBackupStatus("Восстановление отменено. Текущие данные сохранены.");
       return;
     }
@@ -838,6 +865,316 @@ async function restoreBackup(file) {
   } catch (error) {
     console.warn("Не удалось прочитать резервную копию.", error);
     setBackupStatus("Не удалось прочитать JSON-файл. Текущие данные не изменены.", true);
+  }
+}
+
+function stateFingerprint(data) {
+  const source = JSON.stringify(data);
+  let hash = 2166136261;
+  for (let index = 0; index < source.length; index += 1) {
+    hash ^= source.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `${source.length}:${hash >>> 0}`;
+}
+
+function hasRecords(data) {
+  return data.habits.length > 0 || data.goals.length > 0 ||
+    BALANCE_AREAS.some(({ key }) => data.balance[key] > 0) ||
+    STATE_AREAS.some((key) => data.currentState[key].score || data.currentState[key].note);
+}
+
+function loadSyncMeta() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(SYNC_META_KEY) || "null");
+    return saved && typeof saved.userId === "string" && Number.isInteger(saved.revision) ? saved : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveSyncMeta(fingerprint = stateFingerprint(state)) {
+  if (!cloudUser) return;
+  try {
+    localStorage.setItem(SYNC_META_KEY, JSON.stringify({
+      userId: cloudUser.id,
+      revision: cloudRevision,
+      fingerprint,
+    }));
+  } catch (error) {
+    console.warn("Не удалось сохранить служебные данные синхронизации.", error);
+  }
+}
+
+function setSyncStatus(message, kind = "idle") {
+  elements.syncStatus.textContent = message;
+  elements.syncStatus.classList.toggle("is-error", kind === "error");
+  elements.syncIndicator.classList.toggle("is-synced", kind === "synced");
+  elements.syncIndicator.classList.toggle("is-error", kind === "error");
+  elements.syncIndicator.textContent = {
+    synced: "Синхронизировано", pending: "Ожидает синхронизации",
+    error: "Требует внимания", idle: cloudUser ? "Подключено" : "Только в этом браузере",
+  }[kind];
+  elements.storageNote.textContent = kind === "synced"
+    ? "Данные сохранены в браузере и облаке"
+    : "Данные сохранены в этом браузере";
+}
+
+function updateAuthUi() {
+  elements.authForm.hidden = Boolean(cloudUser);
+  elements.signedInControls.hidden = !cloudUser;
+  elements.signedInEmail.textContent = cloudUser?.email || "";
+}
+
+function adoptCloudState(row) {
+  if (!validBackup({ format: BACKUP_FORMAT, version: 1, data: row.data })) {
+    throw new Error("В облаке обнаружены повреждённые данные. Локальные записи сохранены.");
+  }
+  const previous = state;
+  state = row.data;
+  if (!saveState({ sync: false })) {
+    state = previous;
+    throw new Error("Не удалось сохранить облачные данные в браузере.");
+  }
+  cloudRevision = row.revision;
+  syncPending = false;
+  syncConflict = false;
+  cloudReady = true;
+  saveSyncMeta();
+  render();
+  renderCurrentState();
+  setSyncStatus("Последняя версия данных загружена из облака.", "synced");
+}
+
+async function readCloudRow() {
+  const { data, error } = await cloudClient.from("tracker_state")
+    .select("data, revision").eq("user_id", cloudUser.id).maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+function queueCloudSync() {
+  if (!cloudUser) return;
+  syncPending = true;
+  if (!cloudReady || syncConflict) return;
+  setSyncStatus("Изменения сохранены в браузере. Отправляем их в облако…", "pending");
+  window.clearTimeout(syncTimer);
+  syncTimer = window.setTimeout(() => { void flushCloudSync(); }, 700);
+}
+
+async function flushCloudSync() {
+  if (!cloudClient || !cloudUser || !cloudReady || !syncPending || syncConflict || cloudBusy) return;
+  cloudBusy = true;
+  const snapshot = JSON.parse(JSON.stringify(state));
+  const fingerprint = stateFingerprint(snapshot);
+  try {
+    let result;
+    if (cloudRevision === 0) {
+      result = await cloudClient.from("tracker_state")
+        .insert({ user_id: cloudUser.id, data: snapshot, revision: 1 })
+        .select("revision").single();
+    } else {
+      result = await cloudClient.from("tracker_state")
+        .update({ data: snapshot, revision: cloudRevision + 1 })
+        .eq("user_id", cloudUser.id).eq("revision", cloudRevision)
+        .select("revision").maybeSingle();
+    }
+    if (result.error) {
+      if (result.error.code === "23505") {
+        syncConflict = true;
+        setSyncStatus("На другом устройстве уже есть данные. Нажми «Синхронизировать сейчас», чтобы выбрать версию.", "error");
+        return;
+      }
+      throw result.error;
+    }
+    if (!result.data) {
+      syncConflict = true;
+      setSyncStatus("Данные изменились на другом устройстве. Нажми «Синхронизировать сейчас», чтобы выбрать версию.", "error");
+      return;
+    }
+    cloudRevision = result.data.revision;
+    saveSyncMeta(fingerprint);
+    if (stateFingerprint(state) === fingerprint) {
+      syncPending = false;
+      setSyncStatus("Все изменения сохранены на телефоне и компьютере.", "synced");
+    } else {
+      syncPending = true;
+      setSyncStatus("Отправляем последние изменения…", "pending");
+    }
+  } catch (error) {
+    console.warn("Ошибка синхронизации.", error);
+    setSyncStatus("Нет связи с облаком. Изменения остались в браузере; повторим при подключении.", "error");
+  } finally {
+    cloudBusy = false;
+    if (syncPending && !syncConflict && navigator.onLine) {
+      window.clearTimeout(syncTimer);
+      syncTimer = window.setTimeout(() => { void flushCloudSync(); }, 15000);
+    }
+  }
+}
+
+async function reconcileCloudOnSignIn() {
+  const row = await readCloudRow();
+  const meta = loadSyncMeta();
+  const localFingerprint = stateFingerprint(state);
+  if (!row) {
+    cloudRevision = 0;
+    if (!hasRecords(state)) {
+      cloudReady = true;
+      syncPending = false;
+      setSyncStatus("Аккаунт подключён. Новые записи будут синхронизироваться.", "synced");
+    } else if (window.confirm("В этом браузере уже есть записи, а в облаке пока пусто. Перенести локальные записи в аккаунт MRZ?")) {
+      cloudReady = true;
+      syncPending = true;
+      setSyncStatus("Переносим данные в облако…", "pending");
+      await flushCloudSync();
+    } else {
+      syncConflict = true;
+      setSyncStatus("Локальные записи не перенесены. Нажми «Синхронизировать сейчас», когда будешь готов.", "error");
+    }
+    return;
+  }
+  if (!validBackup({ format: BACKUP_FORMAT, version: 1, data: row.data })) {
+    throw new Error("Облачная копия повреждена. Локальные записи не изменены.");
+  }
+  if (localFingerprint === stateFingerprint(row.data) || !hasRecords(state) ||
+    (meta?.userId === cloudUser.id && meta.fingerprint === localFingerprint && meta.revision < row.revision)) {
+    adoptCloudState(row);
+    return;
+  }
+  cloudRevision = row.revision;
+  if (meta?.userId === cloudUser.id && meta.revision === row.revision) {
+    cloudReady = true;
+    syncPending = true;
+    await flushCloudSync();
+    return;
+  }
+  syncConflict = true;
+  setSyncStatus("В браузере и облаке разные записи. Нажми «Синхронизировать сейчас», чтобы выбрать версию.", "error");
+}
+
+async function enterCloudSession(user) {
+  if (authLoading || (cloudUser?.id === user.id && cloudReady)) return;
+  authLoading = true;
+  cloudUser = user;
+  cloudReady = false;
+  syncConflict = false;
+  updateAuthUi();
+  setSyncStatus("Проверяем сохранённые записи…", "pending");
+  try {
+    await reconcileCloudOnSignIn();
+  } catch (error) {
+    console.warn("Не удалось загрузить данные аккаунта.", error);
+    setSyncStatus(error.message || "Не удалось загрузить данные аккаунта. Локальные записи сохранены.", "error");
+  } finally {
+    authLoading = false;
+  }
+}
+
+async function resolveCloudConflict() {
+  if (!cloudUser || cloudBusy) return;
+  cloudBusy = true;
+  try {
+    const row = await readCloudRow();
+    if (!row) {
+      cloudRevision = 0;
+      if (!window.confirm("В облаке нет записей. Перенести данные из этого браузера в аккаунт?")) return;
+      cloudReady = true;
+      syncConflict = false;
+      syncPending = true;
+      return;
+    }
+    if (!validBackup({ format: BACKUP_FORMAT, version: 1, data: row.data })) {
+      throw new Error("Облачная копия повреждена. Локальные записи сохранены.");
+    }
+    if (stateFingerprint(state) === stateFingerprint(row.data)) {
+      adoptCloudState(row);
+      return;
+    }
+    if (window.confirm("В браузере и облаке разные записи. Заменить облачную версию данными этого браузера? Облачные изменения на другом устройстве будут потеряны.")) {
+      cloudRevision = row.revision;
+      cloudReady = true;
+      syncConflict = false;
+      syncPending = true;
+      return;
+    }
+    if (window.confirm("Загрузить облачную версию и заменить локальные записи в этом браузере? При необходимости сначала скачай резервную копию.")) {
+      adoptCloudState(row);
+    }
+  } catch (error) {
+    console.warn("Не удалось разрешить различия между устройствами.", error);
+    setSyncStatus(error.message || "Не удалось получить облачные данные. Попробуй позже.", "error");
+  } finally {
+    cloudBusy = false;
+    if (syncPending && !syncConflict) await flushCloudSync();
+  }
+}
+
+async function refreshCloudState() {
+  if (!cloudUser || !cloudReady || cloudBusy || syncPending || document.hidden) return;
+  cloudBusy = true;
+  try {
+    const row = await readCloudRow();
+    if (!row || row.revision <= cloudRevision) return;
+    const meta = loadSyncMeta();
+    if (meta?.userId === cloudUser.id && meta.fingerprint === stateFingerprint(state)) {
+      adoptCloudState(row);
+    } else {
+      syncConflict = true;
+      setSyncStatus("Появились изменения с другого устройства. Выбери версию на странице «Данные».", "error");
+    }
+  } catch (error) {
+    console.warn("Не удалось проверить облачные изменения.", error);
+  } finally {
+    cloudBusy = false;
+  }
+}
+
+async function loadSupabaseLibrary() {
+  if (window.supabase?.createClient) return;
+  await new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
+    script.onload = resolve;
+    script.onerror = () => reject(new Error("Не удалось загрузить библиотеку синхронизации."));
+    document.head.append(script);
+  });
+}
+
+async function initCloudSync() {
+  try {
+    const response = await fetch(CLOUD_CONFIG_PATH, { cache: "no-store" });
+    if (!response.ok) throw new Error("Настройки облака пока не опубликованы.");
+    const config = await response.json();
+    if (!/^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(config.url) ||
+      typeof config.publishableKey !== "string" || !config.publishableKey.startsWith("sb_publishable_")) {
+      throw new Error("Настройки облака некорректны.");
+    }
+    await loadSupabaseLibrary();
+    cloudClient = window.supabase.createClient(config.url, config.publishableKey);
+    cloudClient.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT") {
+        cloudUser = null;
+        cloudReady = false;
+        syncPending = false;
+        syncConflict = false;
+        updateAuthUi();
+        setSyncStatus("Вы вышли из аккаунта. Записи остались в этом браузере.");
+      } else if (event === "SIGNED_IN" && session?.user) {
+        window.setTimeout(() => { void enterCloudSession(session.user); }, 0);
+      }
+    });
+    const { data, error } = await cloudClient.auth.getSession();
+    if (error) throw error;
+    if (data.session?.user) await enterCloudSession(data.session.user);
+    else setSyncStatus("Войди в аккаунт, чтобы синхронизировать записи.");
+  } catch (error) {
+    console.warn("Синхронизация ещё не настроена.", error);
+    elements.authEmail.disabled = true;
+    elements.authPassword.disabled = true;
+    elements.authSignIn.disabled = true;
+    elements.authSignUp.disabled = true;
+    setSyncStatus("Синхронизация ещё настраивается. Все записи пока сохраняются в этом браузере.", "error");
   }
 }
 
@@ -1102,6 +1439,60 @@ elements.backupFile.addEventListener("change", async () => {
   await restoreBackup(file);
 });
 
+elements.authForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!cloudClient || !elements.authForm.reportValidity()) return;
+  elements.authSignIn.disabled = true;
+  setSyncStatus("Проверяем аккаунт…", "pending");
+  try {
+    const { error } = await cloudClient.auth.signInWithPassword({
+      email: elements.authEmail.value.trim(),
+      password: elements.authPassword.value,
+    });
+    if (error) throw error;
+    elements.authPassword.value = "";
+  } catch (error) {
+    console.warn("Не удалось войти в аккаунт.", error);
+    setSyncStatus("Не удалось войти. Проверь почту, пароль и подтверждение email.", "error");
+  } finally {
+    elements.authSignIn.disabled = false;
+  }
+});
+
+elements.authSignUp.addEventListener("click", async () => {
+  if (!cloudClient || !elements.authForm.reportValidity()) return;
+  elements.authSignUp.disabled = true;
+  setSyncStatus("Создаём аккаунт…", "pending");
+  try {
+    const { data, error } = await cloudClient.auth.signUp({
+      email: elements.authEmail.value.trim(),
+      password: elements.authPassword.value,
+      options: { emailRedirectTo: `${location.origin}${location.pathname}` },
+    });
+    if (error) throw error;
+    elements.authPassword.value = "";
+    if (!data.session) setSyncStatus("Аккаунт создан. Подтверди почту по ссылке в письме, затем войди.");
+  } catch (error) {
+    console.warn("Не удалось создать аккаунт.", error);
+    setSyncStatus("Не удалось создать аккаунт. Проверь почту и пароль или попробуй позже.", "error");
+  } finally {
+    elements.authSignUp.disabled = false;
+  }
+});
+
+elements.authSignOut.addEventListener("click", async () => {
+  if (!cloudClient) return;
+  const { error } = await cloudClient.auth.signOut();
+  if (error) setSyncStatus("Не удалось выйти из аккаунта. Попробуй ещё раз.", "error");
+});
+
+elements.syncNow.addEventListener("click", async () => {
+  if (!cloudUser) return;
+  if (syncConflict || !cloudReady) await resolveCloudConflict();
+  else if (syncPending) await flushCloudSync();
+  else await refreshCloudState();
+});
+
 document.querySelector("#previous-goal-year").addEventListener("click", () => {
   selectedGoalYear -= 1;
   renderGoals();
@@ -1161,9 +1552,19 @@ window.addEventListener("storage", (event) => {
   setBackupStatus("Данные обновлены из другой вкладки этого адреса.");
 });
 document.addEventListener("visibilitychange", () => {
-  if (!document.hidden) render();
+  if (!document.hidden) {
+    render();
+    if (syncPending) void flushCloudSync();
+    else void refreshCloudState();
+  }
 });
+window.addEventListener("online", () => {
+  if (syncPending) void flushCloudSync();
+  else void refreshCloudState();
+});
+window.setInterval(() => { void refreshCloudState(); }, 30000);
 
 render();
 renderCurrentState();
 showView(location.hash.slice(1));
+void initCloudSync();

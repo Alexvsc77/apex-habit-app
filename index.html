@@ -9,8 +9,8 @@
       content="Трекер привычек с недельной таблицей, гибким расписанием и статистикой регулярности."
     />
     <title>MRZ — трекер привычек</title>
-    <link rel="stylesheet" href="./styles.css" />
-    <script src="./app.js" defer></script>
+    <link rel="stylesheet" href="./styles.css?v=20261019-cloud" />
+    <script src="./app.js?v=20261019-cloud" defer></script>
   </head>
   <body>
     <a class="skip-link" href="#main">Перейти к содержимому</a>
@@ -61,7 +61,7 @@
             <span class="sidebar-note-icon" aria-hidden="true">✦</span>
             <p>Регулярность строится день за днём.</p>
           </div>
-          <p class="storage-note">Данные сохранены в этом браузере</p>
+          <p id="storage-note" class="storage-note">Данные сохранены в этом браузере</p>
         </div>
       </aside>
 
@@ -331,8 +331,37 @@
           <div class="page-heading">
             <p class="eyebrow">07 / СОХРАНЕНИЕ</p>
             <h1 id="data-title">Твои данные.<br />Под контролем.</h1>
-            <p class="page-description">Созданные привычки и цели, отметки, оценки и заметки сохраняются в этом браузере. В формах привычек и целей нажимай «Сохранить».</p>
+            <p class="page-description">Привычки, цели, отметки и заметки сохраняются автоматически. Войди в аккаунт, чтобы пользоваться ими на телефоне и компьютере.</p>
           </div>
+
+          <section class="content-card sync-card" aria-labelledby="sync-title">
+            <div class="card-heading">
+              <div>
+                <p class="micro-label">АККАУНТ И СИНХРОНИЗАЦИЯ</p>
+                <h2 id="sync-title">Твои записи на всех устройствах</h2>
+              </div>
+              <span id="sync-indicator" class="sync-indicator">Только в этом браузере</span>
+            </div>
+            <p>Войди с одним и тем же адресом почты на телефоне и компьютере. Перед первым переносом локальных записей приложение спросит подтверждение.</p>
+            <form id="auth-form" class="auth-form" novalidate>
+              <label for="auth-email">Электронная почта</label>
+              <input id="auth-email" type="email" autocomplete="email" required placeholder="name@example.com" />
+              <label for="auth-password">Пароль</label>
+              <input id="auth-password" type="password" autocomplete="current-password" minlength="6" required placeholder="Не менее 6 символов" />
+              <div class="data-actions">
+                <button id="auth-sign-in" class="button button-primary" type="submit">Войти</button>
+                <button id="auth-sign-up" class="button button-outline" type="button">Создать аккаунт</button>
+              </div>
+            </form>
+            <div id="signed-in-controls" class="signed-in-controls" hidden>
+              <p>Аккаунт: <strong id="signed-in-email"></strong></p>
+              <div class="data-actions">
+                <button id="sync-now" class="button button-outline" type="button">Синхронизировать сейчас</button>
+                <button id="auth-sign-out" class="button button-outline" type="button">Выйти</button>
+              </div>
+            </div>
+            <p id="sync-status" class="backup-status" role="status" aria-live="polite">Данные пока доступны только в этом браузере.</p>
+          </section>
 
           <div class="data-layout">
             <section class="content-card data-card" aria-labelledby="backup-title">
@@ -352,11 +381,11 @@
               <p class="micro-label">КАК ЭТО РАБОТАЕТ</p>
               <h2 id="data-help-title">Автосохранение и восстановление</h2>
               <ol>
-                <li>Работай в одном браузере по одному и тому же адресу сайта: разные адреса хранят данные отдельно.</li>
+                <li>Без входа записи хранятся только в этом браузере. Для доступа с других устройств войди в один аккаунт MRZ.</li>
                 <li>Периодически скачивай резервную копию и храни её в удобном месте.</li>
                 <li>Чтобы вернуть данные, выбери копию. Перед заменой текущих записей приложение покажет подтверждение.</li>
               </ol>
-              <p>Файл остаётся на твоём устройстве: приложение не отправляет его на сервер.</p>
+              <p>Файл копии скачивается на твоё устройство. После входа восстановленные записи можно синхронизировать с аккаунтом.</p>
             </aside>
           </div>
         </section>

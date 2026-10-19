@@ -466,6 +466,23 @@ a { color: inherit; }
 .button-danger { border: 1px solid #77514b; background: transparent; color: #e4a49d; }
 .button-danger:hover { border-color: var(--danger); background: #2a1b1a; }
 
+.sync-card { margin-bottom: 16px; }
+.sync-card .card-heading { flex-wrap: wrap; gap: 12px; }
+.sync-card h2 { margin: 8px 0 0; font-size: 23px; font-weight: 550; letter-spacing: -.035em; }
+.sync-card > p:not(.backup-status) { max-width: 680px; color: var(--muted); font-size: 12px; }
+.sync-indicator { padding: 7px 10px; border: 1px solid #625036; border-radius: 20px; color: var(--gold-bright); font-size: 10px; white-space: nowrap; }
+.sync-indicator.is-synced { border-color: #55775d; color: #b3d5b7; }
+.sync-indicator.is-error { border-color: #77514b; color: var(--danger); }
+.auth-form { display: grid; gap: 8px; max-width: 450px; margin-top: 23px; }
+.auth-form label { color: var(--text); font-size: 12px; font-weight: 600; }
+.auth-form label:not(:first-child) { margin-top: 10px; }
+.auth-form input { width: 100%; min-height: 46px; padding: 10px 13px; border: 1px solid #3f3f3e; border-radius: 5px; outline: none; background: #111; color: var(--text); font-size: 16px; }
+.auth-form input:focus { border-color: var(--gold); }
+.auth-form .data-actions { margin-top: 12px; }
+.signed-in-controls { margin-top: 20px; }
+.signed-in-controls p { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.signed-in-controls strong { color: var(--text); }
+.signed-in-controls .data-actions { margin-top: 14px; }
 .data-layout { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(280px, .9fr); gap: 16px; margin-bottom: 70px; }
 .data-card h2, .data-help h2 { margin: 10px 0 15px; font-size: 23px; font-weight: 550; letter-spacing: -.035em; }
 .data-card > p:not(.micro-label):not(.backup-status), .data-help > p:not(.micro-label) { max-width: 560px; color: var(--muted); font-size: 12px; }
@@ -589,6 +606,8 @@ a { color: inherit; }
   .state-card h2 { font-size: 18px; }
   .state-save-status { margin-top: -45px; }
   .data-actions .button { width: 100%; }
+  .sync-card .card-heading { align-items: flex-start; }
+  .sync-indicator { white-space: normal; }
   .backup-count { flex: 1 1 120px; }
   .daily-chart { gap: 3px; }
   .daily-day { min-width: 22px; flex-basis: 22px; }

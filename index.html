@@ -1,0 +1,431 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0b0b0b" />
+    <meta
+      name="description"
+      content="Трекер привычек с недельной таблицей, гибким расписанием и статистикой регулярности."
+    />
+    <title>MRZ — трекер привычек</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="./app.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Перейти к содержимому</a>
+
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Навигация">
+        <a class="brand" href="#dashboard" aria-label="MRZ — главная">
+          <span class="brand-mark" aria-hidden="true">△</span>
+          <span>MRZ</span>
+        </a>
+
+        <div class="sidebar-group">
+          <p class="sidebar-label">РАБОЧЕЕ ПРОСТРАНСТВО</p>
+          <nav class="nav-list" aria-label="Разделы приложения">
+            <button class="nav-item is-active" type="button" data-view="dashboard" aria-current="page">
+              <span class="nav-icon" aria-hidden="true">▦</span>
+              Обзор
+            </button>
+            <button class="nav-item" type="button" data-view="analytics">
+              <span class="nav-icon" aria-hidden="true">◫</span>
+              Статистика
+            </button>
+            <button class="nav-item" type="button" data-view="habits">
+              <span class="nav-icon" aria-hidden="true">☷</span>
+              Привычки
+            </button>
+            <button class="nav-item" type="button" data-view="goals">
+              <span class="nav-icon" aria-hidden="true">◎</span>
+              Цели
+            </button>
+            <button class="nav-item" type="button" data-view="balance">
+              <span class="nav-icon" aria-hidden="true">◈</span>
+              Колесо баланса
+            </button>
+            <button class="nav-item" type="button" data-view="state">
+              <span class="nav-icon" aria-hidden="true">◉</span>
+              Текущее состояние
+            </button>
+            <button class="nav-item" type="button" data-view="data">
+              <span class="nav-icon" aria-hidden="true">▤</span>
+              Данные
+            </button>
+          </nav>
+        </div>
+
+        <div class="sidebar-bottom">
+          <div class="sidebar-note">
+            <span class="sidebar-note-icon" aria-hidden="true">✦</span>
+            <p>Регулярность строится день за днём.</p>
+          </div>
+          <p class="storage-note">Данные сохранены в этом браузере</p>
+        </div>
+      </aside>
+
+      <main id="main" class="main-content">
+        <header class="topbar">
+          <div class="topbar-path"><span>MRZ</span><span aria-hidden="true">/</span><span id="view-breadcrumb">ОБЗОР</span></div>
+          <div class="topbar-actions">
+            <span id="today-label" class="today-label"></span>
+            <button class="button button-primary" type="button" data-open-habit-dialog>
+              <span aria-hidden="true">＋</span> Новая привычка
+            </button>
+          </div>
+        </header>
+
+        <section id="dashboard-view" class="view" aria-labelledby="dashboard-title">
+          <div class="page-heading">
+            <p class="eyebrow">01 / ЕЖЕДНЕВНОЕ ОТСЛЕЖИВАНИЕ</p>
+            <div class="heading-row">
+              <div>
+                <h1 id="dashboard-title">Ваши привычки.<br />День за днём.</h1>
+                <p class="page-description">Отмечай сделанное и смотри, как складывается регулярность.</p>
+              </div>
+              <div class="heading-aside" aria-hidden="true">ПОСТРОЕНО<br />ПОВТОРЕНИЕМ.</div>
+            </div>
+          </div>
+
+          <div class="tracker-panel">
+            <div class="panel-topline">
+              <span>MRZ / ОБЗОР</span>
+              <span>У КАЖДОГО ДОСТИЖЕНИЯ СВОЙ ДЕНЬ.</span>
+            </div>
+
+            <div class="tracker-layout">
+              <section class="tracker-main" aria-label="Недельный трекер">
+                <div class="section-toolbar">
+                  <div>
+                    <p class="micro-label">ТВОЯ НЕДЕЛЯ</p>
+                    <h2 id="week-range" class="section-title"></h2>
+                  </div>
+                  <div class="week-controls" aria-label="Выбор недели">
+                    <button id="previous-week" class="icon-button" type="button" aria-label="Предыдущая неделя">←</button>
+                    <button id="current-week" class="text-button" type="button">Сегодня</button>
+                    <button id="next-week" class="icon-button" type="button" aria-label="Следующая неделя">→</button>
+                  </div>
+                </div>
+
+                <div class="table-scroll">
+                  <table class="habit-table">
+                    <thead>
+                      <tr id="week-headings"><th scope="col">Привычка</th></tr>
+                    </thead>
+                    <tbody id="habit-grid"></tbody>
+                  </table>
+                </div>
+
+                <div id="dashboard-empty" class="empty-state" hidden>
+                  <div class="empty-icon" aria-hidden="true">✦</div>
+                  <h3>Начни с первой привычки</h3>
+                  <p>Выбери дни, когда хочешь её выполнять. Здесь появится твоя недельная таблица.</p>
+                  <button class="button button-outline" type="button" data-open-habit-dialog>Добавить привычку</button>
+                </div>
+
+                <ul class="legend" aria-label="Обозначения">
+                  <li><span class="status-key status-key-complete" aria-hidden="true"></span> Выполнено</li>
+                  <li><span class="status-key status-key-missed" aria-hidden="true"></span> Пропущено</li>
+                  <li><span class="status-key status-key-due" aria-hidden="true"></span> Сегодня</li>
+                  <li><span class="status-key status-key-upcoming" aria-hidden="true"></span> Предстоит</li>
+                  <li><span class="status-key status-key-unscheduled" aria-hidden="true"></span> Не запланировано</li>
+                </ul>
+              </section>
+
+              <aside class="summary-panel" aria-label="Твой прогресс">
+                <div class="summary-heading"><span>ТВОЙ ПРОГРЕСС</span><span>ВЫПОЛНЕНО / ЗАПЛАНИРОВАНО</span></div>
+                <div id="period-summary" class="period-summary"></div>
+                <p class="summary-footnote">Будущие дни не учитываются в показателях.</p>
+              </aside>
+            </div>
+          </div>
+
+          <section class="dashboard-secondary" aria-labelledby="pattern-preview-title">
+            <div>
+              <p class="eyebrow">02 / ЗАКОНОМЕРНОСТИ</p>
+              <h2 id="pattern-preview-title">Сохраняй<br />стабильность.</h2>
+              <p>Сравни результаты по дням недели и найди дни, которым нужно больше внимания.</p>
+              <button class="link-button" type="button" data-view="analytics">Вся статистика <span aria-hidden="true">↗</span></button>
+            </div>
+            <div id="weekday-preview" class="weekday-preview" aria-label="Выполнение по дням недели"></div>
+          </section>
+        </section>
+
+        <section id="analytics-view" class="view" aria-labelledby="analytics-title" hidden>
+          <div class="page-heading">
+            <p class="eyebrow">02 / СТАТИСТИКА</p>
+            <h1 id="analytics-title">Твой прогресс.<br />В деталях.</h1>
+            <p class="page-description">Выполненные действия относительно запланированных.</p>
+          </div>
+
+          <div id="analytics-cards" class="analytics-cards"></div>
+
+          <section class="content-card daily-analysis" aria-labelledby="daily-title">
+            <div class="card-heading">
+              <div>
+                <p class="micro-label">КАЛЕНДАРЬ ДИСЦИПЛИНЫ</p>
+                <h2 id="daily-title">Как прошёл каждый день</h2>
+              </div>
+              <span class="muted-caption">ПОСЛЕДНИЕ 30 ДНЕЙ</span>
+            </div>
+            <p class="chart-intro">Высота столбца показывает долю выполненных привычек. Выбери дату, чтобы увидеть подробности.</p>
+            <div id="daily-chart" class="daily-chart" aria-label="Выполнение привычек за последние 30 дней"></div>
+            <div id="daily-details" class="daily-details" aria-live="polite"></div>
+            <div id="day-insights" class="day-insights" aria-label="Лучший и самый слабый день"></div>
+          </section>
+
+          <div class="analytics-layout">
+            <section class="content-card" aria-labelledby="weekday-title">
+              <div class="card-heading">
+                <div><p class="micro-label">ЗАКОНОМЕРНОСТИ</p><h2 id="weekday-title">По дням недели</h2></div>
+                <span class="muted-caption">ЗА ВСЁ ВРЕМЯ</span>
+              </div>
+              <div id="weekday-chart" class="weekday-chart"></div>
+              <p class="card-note">Процент = выполнено ÷ запланировано. Дни без запланированных привычек не входят в расчёт.</p>
+            </section>
+
+            <section class="content-card" aria-labelledby="habit-performance-title">
+              <div class="card-heading"><div><p class="micro-label">ПРИВЫЧКИ</p><h2 id="habit-performance-title">По каждой привычке</h2></div></div>
+              <div id="habit-performance" class="habit-performance"></div>
+            </section>
+          </div>
+
+          <section class="content-card weekly-analysis" aria-labelledby="weekly-title">
+            <div class="card-heading">
+              <div>
+                <p class="micro-label">ДИНАМИКА</p>
+                <h2 id="weekly-title">Как менялись недели</h2>
+              </div>
+              <span class="muted-caption">ПОСЛЕДНИЕ 12 НЕДЕЛЬ</span>
+            </div>
+            <div id="weekly-chart" class="weekly-chart" aria-label="Процент выполнения привычек за последние 12 недель"></div>
+            <p class="card-note">Процент считается только по запланированным привычкам за прошедшие дни недели.</p>
+          </section>
+        </section>
+
+        <section id="habits-view" class="view" aria-labelledby="habits-title" hidden>
+          <div class="page-heading">
+            <p class="eyebrow">03 / РАСПИСАНИЕ</p>
+            <h1 id="habits-title">Твои привычки.<br />Твой ритм.</h1>
+            <p class="page-description">Меняй расписание, когда меняется жизнь. Прошлые записи останутся прежними.</p>
+          </div>
+
+          <div class="content-card habit-management-card">
+            <div class="card-heading">
+              <div><p class="micro-label">УПРАВЛЕНИЕ</p><h2>Активные привычки</h2></div>
+              <button class="button button-outline" type="button" data-open-habit-dialog>＋ Добавить</button>
+            </div>
+            <div id="habit-list" class="habit-list"></div>
+          </div>
+        </section>
+
+        <section id="goals-view" class="view" aria-labelledby="goals-title" hidden>
+          <div class="page-heading">
+            <p class="eyebrow">04 / НАПРАВЛЕНИЕ</p>
+            <h1 id="goals-title">Цели, к которым<br />ты идёшь.</h1>
+            <p class="page-description">Зафиксируй главное и разбей планы по годам. Прогресс обновляй по мере движения.</p>
+          </div>
+
+          <div class="goal-sections">
+            <section class="content-card" aria-labelledby="main-goals-title">
+              <div class="card-heading">
+                <div><p class="micro-label">ПРИОРИТЕТЫ</p><h2 id="main-goals-title">Главные цели</h2></div>
+                <button class="button button-outline" type="button" data-open-goal-dialog="main">＋ Добавить</button>
+              </div>
+              <div id="main-goal-list" class="goal-list"></div>
+            </section>
+
+            <section class="content-card" aria-labelledby="annual-goals-title">
+              <div class="card-heading">
+                <div><p class="micro-label">ПЛАН НА ГОД</p><h2 id="annual-goals-title">Цели на год</h2></div>
+                <button class="button button-outline" type="button" data-open-goal-dialog="annual">＋ Добавить</button>
+              </div>
+              <div class="goal-year-controls" aria-label="Выбор года">
+                <button id="previous-goal-year" class="icon-button" type="button" aria-label="Предыдущий год">←</button>
+                <span id="goal-year-label"></span>
+                <button id="next-goal-year" class="icon-button" type="button" aria-label="Следующий год">→</button>
+              </div>
+              <div id="annual-goal-list" class="goal-list"></div>
+            </section>
+          </div>
+        </section>
+
+        <section id="balance-view" class="view" aria-labelledby="balance-title" hidden>
+          <div class="page-heading">
+            <p class="eyebrow">05 / ОБЛАСТИ ЖИЗНИ</p>
+            <h1 id="balance-title">Колесо<br />баланса.</h1>
+            <p class="page-description">Оцени каждую сферу от 1 до 10. Колесо покажет, где сейчас есть опора, а чему стоит уделить внимание.</p>
+          </div>
+
+          <div class="balance-layout">
+            <section class="content-card wheel-card" aria-labelledby="wheel-title">
+              <div class="card-heading">
+                <div><p class="micro-label">ОБЩАЯ КАРТИНА</p><h2 id="wheel-title">Восемь сфер</h2></div>
+                <span class="muted-caption">ШКАЛА 1–10</span>
+              </div>
+              <svg id="balance-wheel" class="balance-wheel" viewBox="0 0 500 500" role="img" aria-labelledby="wheel-svg-title wheel-svg-description">
+                <title id="wheel-svg-title">Колесо баланса</title>
+                <desc id="wheel-svg-description">Диаграмма оценок восьми сфер жизни. Числа доступны в списке рядом.</desc>
+              </svg>
+              <p class="card-note">Ноль означает, что сфера ещё не оценена. Оценки сохраняются в этом браузере.</p>
+            </section>
+
+            <section class="content-card balance-controls-card" aria-labelledby="balance-controls-title">
+              <div class="card-heading"><div><p class="micro-label">ТВОЯ ОЦЕНКА</p><h2 id="balance-controls-title">Настрой колесо</h2></div></div>
+              <div class="rating-list">
+                <label class="rating-row" for="balance-rest"><span>Отдых</span><output id="balance-rest-value" for="balance-rest">—</output><input id="balance-rest" type="range" min="0" max="10" value="0" data-balance="rest" /></label>
+                <label class="rating-row" for="balance-health"><span>Здоровье</span><output id="balance-health-value" for="balance-health">—</output><input id="balance-health" type="range" min="0" max="10" value="0" data-balance="health" /></label>
+                <label class="rating-row" for="balance-finance"><span>Финансы</span><output id="balance-finance-value" for="balance-finance">—</output><input id="balance-finance" type="range" min="0" max="10" value="0" data-balance="finance" /></label>
+                <label class="rating-row" for="balance-work"><span>Работа</span><output id="balance-work-value" for="balance-work">—</output><input id="balance-work" type="range" min="0" max="10" value="0" data-balance="work" /></label>
+                <label class="rating-row" for="balance-sport"><span>Спорт</span><output id="balance-sport-value" for="balance-sport">—</output><input id="balance-sport" type="range" min="0" max="10" value="0" data-balance="sport" /></label>
+                <label class="rating-row" for="balance-growth"><span>Саморазвитие</span><output id="balance-growth-value" for="balance-growth">—</output><input id="balance-growth" type="range" min="0" max="10" value="0" data-balance="growth" /></label>
+                <label class="rating-row" for="balance-family"><span>Семья</span><output id="balance-family-value" for="balance-family">—</output><input id="balance-family" type="range" min="0" max="10" value="0" data-balance="family" /></label>
+                <label class="rating-row" for="balance-network"><span>Нетворкинг</span><output id="balance-network-value" for="balance-network">—</output><input id="balance-network" type="range" min="0" max="10" value="0" data-balance="network" /></label>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section id="state-view" class="view" aria-labelledby="state-title" hidden>
+          <div class="page-heading">
+            <p class="eyebrow">06 / ТОЧКА ОТСЧЁТА</p>
+            <h1 id="state-title">Текущее<br />состояние.</h1>
+            <p class="page-description">Оцени себя по четырём направлениям и запиши факты, на которые хочешь опираться.</p>
+          </div>
+
+          <div class="current-state-grid">
+            <article class="content-card state-card">
+              <div class="state-card-heading"><div><p class="micro-label">01 / РЕСУРСЫ</p><h2>Деньги</h2></div><output id="state-money-value" for="state-money-score">—</output></div>
+              <label for="state-money-score">Оценка от 1 до 10</label>
+              <input id="state-money-score" type="range" min="0" max="10" value="0" data-state-score="money" />
+              <label for="state-money-note">Текущая ситуация</label>
+              <textarea id="state-money-note" rows="4" maxlength="1000" data-state-note="money" placeholder="Доходы, накопления, расходы и обязательства"></textarea>
+            </article>
+            <article class="content-card state-card">
+              <div class="state-card-heading"><div><p class="micro-label">02 / САМОЧУВСТВИЕ</p><h2>Здоровье и физическая форма</h2></div><output id="state-body-value" for="state-body-score">—</output></div>
+              <label for="state-body-score">Оценка от 1 до 10</label>
+              <input id="state-body-score" type="range" min="0" max="10" value="0" data-state-score="body" />
+              <label for="state-body-note">Текущая ситуация</label>
+              <textarea id="state-body-note" rows="4" maxlength="1000" data-state-note="body" placeholder="Сон, энергия, питание, движение и форма"></textarea>
+            </article>
+            <article class="content-card state-card">
+              <div class="state-card-heading"><div><p class="micro-label">03 / ВОЗМОЖНОСТИ</p><h2>Навыки</h2></div><output id="state-skills-value" for="state-skills-score">—</output></div>
+              <label for="state-skills-score">Оценка от 1 до 10</label>
+              <input id="state-skills-score" type="range" min="0" max="10" value="0" data-state-score="skills" />
+              <label for="state-skills-note">Текущая ситуация</label>
+              <textarea id="state-skills-note" rows="4" maxlength="1000" data-state-note="skills" placeholder="Что уже умеешь и чему сейчас учишься"></textarea>
+            </article>
+            <article class="content-card state-card">
+              <div class="state-card-heading"><div><p class="micro-label">04 / ВНУТРЕННИЙ ФОКУС</p><h2>Внутреннее состояние</h2></div><output id="state-mind-value" for="state-mind-score">—</output></div>
+              <label for="state-mind-score">Оценка от 1 до 10</label>
+              <input id="state-mind-score" type="range" min="0" max="10" value="0" data-state-score="mind" />
+              <label for="state-mind-note">Текущая ситуация</label>
+              <textarea id="state-mind-note" rows="4" maxlength="1000" data-state-note="mind" placeholder="Настроение, стресс, мотивация и ощущение устойчивости"></textarea>
+            </article>
+          </div>
+          <p id="state-save-status" class="state-save-status" role="status" aria-live="polite">Изменения сохраняются автоматически.</p>
+        </section>
+
+        <section id="data-view" class="view" aria-labelledby="data-title" hidden>
+          <div class="page-heading">
+            <p class="eyebrow">07 / СОХРАНЕНИЕ</p>
+            <h1 id="data-title">Твои данные.<br />Под контролем.</h1>
+            <p class="page-description">Созданные привычки и цели, отметки, оценки и заметки сохраняются в этом браузере. В формах привычек и целей нажимай «Сохранить».</p>
+          </div>
+
+          <div class="data-layout">
+            <section class="content-card data-card" aria-labelledby="backup-title">
+              <p class="micro-label">РЕЗЕРВНАЯ КОПИЯ</p>
+              <h2 id="backup-title">Сохрани всё одним файлом</h2>
+              <p>Скачай копию в формате JSON. Она пригодится, если сменишь браузер, адрес сайта или очистишь данные браузера.</p>
+              <div id="backup-counts" class="backup-counts"></div>
+              <div class="data-actions">
+                <button id="export-backup" class="button button-primary" type="button">Скачать копию</button>
+                <button id="import-backup" class="button button-outline" type="button">Восстановить из файла</button>
+                <input id="backup-file" type="file" accept=".json,application/json" hidden />
+              </div>
+              <p id="backup-status" class="backup-status" role="status" aria-live="polite">Копия включает все разделы трекера.</p>
+            </section>
+
+            <aside class="content-card data-help" aria-labelledby="data-help-title">
+              <p class="micro-label">КАК ЭТО РАБОТАЕТ</p>
+              <h2 id="data-help-title">Автосохранение и восстановление</h2>
+              <ol>
+                <li>Работай в одном браузере по одному и тому же адресу сайта: разные адреса хранят данные отдельно.</li>
+                <li>Периодически скачивай резервную копию и храни её в удобном месте.</li>
+                <li>Чтобы вернуть данные, выбери копию. Перед заменой текущих записей приложение покажет подтверждение.</li>
+              </ol>
+              <p>Файл остаётся на твоём устройстве: приложение не отправляет его на сервер.</p>
+            </aside>
+          </div>
+        </section>
+
+        <footer class="app-footer"><span>MRZ / ДЕНЬ ЗА ДНЁМ</span><span>ЛИЧНЫЙ ТРЕКЕР ПРИВЫЧЕК</span></footer>
+      </main>
+    </div>
+
+    <dialog id="habit-dialog" class="habit-dialog" aria-labelledby="habit-dialog-title">
+      <form id="habit-form" novalidate>
+        <div class="dialog-heading">
+          <div><p class="micro-label">MRZ / ПРИВЫЧКА</p><h2 id="habit-dialog-title">Новая привычка</h2></div>
+          <button class="dialog-close" type="button" data-close-dialog aria-label="Закрыть">×</button>
+        </div>
+
+        <label class="field-label" for="habit-name">Название</label>
+        <input id="habit-name" name="name" type="text" maxlength="60" placeholder="Например, читать 10 страниц" required />
+        <p id="name-error" class="field-error" role="alert" hidden>Введи название привычки.</p>
+
+        <fieldset class="weekday-fieldset">
+          <legend>В какие дни выполнять?</legend>
+          <div class="weekday-options">
+            <label><input type="checkbox" name="weekday" value="1" /><span>Пн</span></label>
+            <label><input type="checkbox" name="weekday" value="2" /><span>Вт</span></label>
+            <label><input type="checkbox" name="weekday" value="3" /><span>Ср</span></label>
+            <label><input type="checkbox" name="weekday" value="4" /><span>Чт</span></label>
+            <label><input type="checkbox" name="weekday" value="5" /><span>Пт</span></label>
+            <label><input type="checkbox" name="weekday" value="6" /><span>Сб</span></label>
+            <label><input type="checkbox" name="weekday" value="0" /><span>Вс</span></label>
+          </div>
+          <p id="days-error" class="field-error" role="alert" hidden>Выбери хотя бы один день.</p>
+        </fieldset>
+
+        <p id="schedule-note" class="dialog-note" hidden>Новое расписание начнёт действовать с сегодняшнего дня. История прошлых дней сохранится.</p>
+        <div class="dialog-actions">
+          <button id="archive-habit" class="button button-danger" type="button" hidden>В архив</button>
+          <button class="button button-outline" type="button" data-close-dialog>Отмена</button>
+          <button id="save-habit" class="button button-primary" type="submit">Создать привычку</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="goal-dialog" class="habit-dialog goal-dialog" aria-labelledby="goal-dialog-title">
+      <form id="goal-form" novalidate>
+        <div class="dialog-heading">
+          <div><p class="micro-label">MRZ / ЦЕЛЬ</p><h2 id="goal-dialog-title">Новая цель</h2></div>
+          <button class="dialog-close" type="button" data-close-goal-dialog aria-label="Закрыть">×</button>
+        </div>
+        <label class="field-label" for="goal-name">Название цели</label>
+        <input id="goal-name" name="name" type="text" maxlength="100" placeholder="Например, закончить обучение" required />
+        <p id="goal-name-error" class="field-error" role="alert" hidden>Введи название цели.</p>
+
+        <label class="field-label" for="goal-description">Описание</label>
+        <textarea id="goal-description" name="description" rows="4" maxlength="1000" placeholder="Какого результата хочешь достичь?"></textarea>
+
+        <label class="field-label" for="goal-deadline">Срок</label>
+        <input id="goal-deadline" name="deadline" type="date" />
+
+        <div class="goal-progress-heading"><label class="field-label" for="goal-progress">Прогресс</label><output id="goal-progress-value" for="goal-progress">0%</output></div>
+        <input id="goal-progress" name="progress" type="range" min="0" max="100" step="5" value="0" />
+
+        <div class="dialog-actions">
+          <button id="delete-goal" class="button button-danger" type="button" hidden>Удалить</button>
+          <button class="button button-outline" type="button" data-close-goal-dialog>Отмена</button>
+          <button id="save-goal" class="button button-primary" type="submit">Создать цель</button>
+        </div>
+      </form>
+    </dialog>
+
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  </body>
+</html>

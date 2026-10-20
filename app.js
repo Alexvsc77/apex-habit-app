@@ -1134,7 +1134,7 @@ async function loadSupabaseLibrary() {
   if (window.supabase?.createClient) return;
   await new Promise((resolve, reject) => {
     const script = document.createElement("script");
-    script.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
+    script.src = "./vendor/supabase.js";
     script.onload = resolve;
     script.onerror = () => reject(new Error("Не удалось загрузить библиотеку синхронизации."));
     document.head.append(script);

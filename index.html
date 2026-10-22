@@ -9,13 +9,57 @@
       content="Трекер привычек с недельной таблицей, гибким расписанием и статистикой регулярности."
     />
     <title>MRZ — трекер привычек</title>
-    <link rel="stylesheet" href="./styles.css?v=20261019-cloud" />
-    <script src="./app.js?v=20261020-local-supabase" defer></script>
+    <link rel="stylesheet" href="./styles.css?v=20261022-welcome" />
+    <script src="./app.js?v=20261022-welcome" defer></script>
   </head>
   <body>
-    <a class="skip-link" href="#main">Перейти к содержимому</a>
+    <a class="skip-link" href="#welcome-title">Перейти к содержимому</a>
 
-    <div class="app-shell">
+    <section id="welcome-screen" class="welcome-screen" aria-labelledby="welcome-title">
+      <div class="welcome-glow" aria-hidden="true"></div>
+      <div class="welcome-layout">
+        <header class="welcome-header">
+          <span class="welcome-logo"><span aria-hidden="true">△</span> MRZ</span>
+          <span class="welcome-header-note">ТВОЯ ЛИЧНАЯ СИСТЕМА</span>
+        </header>
+
+        <div class="welcome-intro">
+          <p class="welcome-eyebrow"><span aria-hidden="true">✦</span> ДЕНЬ ЗА ДНЁМ</p>
+          <h1 id="welcome-title">Стань сильнее<br /><em>себя вчерашнего.</em></h1>
+          <p class="welcome-description">Привычки, цели и честный взгляд на свой прогресс — в одном пространстве. Начни с первого шага.</p>
+          <div class="welcome-rule"><span>ДИСЦИПЛИНА</span><span>ФОКУС</span><span>РОСТ</span></div>
+        </div>
+
+        <div class="welcome-portrait" aria-hidden="true">
+          <img src="./assets/mrz-hero.jpeg" width="415" height="738" alt="" fetchpriority="high" />
+        </div>
+
+        <section class="welcome-auth-card" aria-labelledby="welcome-auth-title">
+          <p class="welcome-card-kicker">ДОСТУП К MRZ <span aria-hidden="true">↗</span></p>
+          <h2 id="welcome-auth-title">Твоя система начинается здесь.</h2>
+          <p class="welcome-card-copy">Войди или создай аккаунт, чтобы открыть все разделы и синхронизировать данные между устройствами.</p>
+          <form id="auth-form" class="auth-form" novalidate>
+            <label for="auth-email">Электронная почта</label>
+            <input id="auth-email" type="email" autocomplete="email" required placeholder="name@example.com" />
+            <label for="auth-password">Пароль</label>
+            <input id="auth-password" type="password" autocomplete="current-password" minlength="6" required placeholder="Не менее 6 символов" />
+            <div class="welcome-auth-actions">
+              <button id="auth-sign-in" class="button button-primary" type="submit">Войти <span aria-hidden="true">↗</span></button>
+              <button id="auth-sign-up" class="button button-outline" type="button">Создать аккаунт</button>
+            </div>
+          </form>
+          <div id="welcome-account-actions" class="welcome-account-actions" hidden>
+            <button id="welcome-retry" class="button button-primary" type="button">Продолжить</button>
+            <button id="welcome-sign-out" class="button button-outline" type="button">Выйти из аккаунта</button>
+          </div>
+          <p id="welcome-status" class="welcome-status" role="status" aria-live="polite">Проверяем сохранённую сессию…</p>
+        </section>
+
+        <div class="welcome-footer"><span>MRZ © 2026</span><span>НАЧНИ СЕГОДНЯ</span></div>
+      </div>
+    </section>
+
+    <div class="app-shell" hidden>
       <aside class="sidebar" aria-label="Навигация">
         <a class="brand" href="#dashboard" aria-label="MRZ — главная">
           <span class="brand-mark" aria-hidden="true">△</span>
@@ -331,7 +375,7 @@
           <div class="page-heading">
             <p class="eyebrow">07 / СОХРАНЕНИЕ</p>
             <h1 id="data-title">Твои данные.<br />Под контролем.</h1>
-            <p class="page-description">Привычки, цели, отметки и заметки сохраняются автоматически. Войди в аккаунт, чтобы пользоваться ими на телефоне и компьютере.</p>
+            <p class="page-description">Привычки, цели, отметки и заметки сохраняются автоматически и доступны в твоём аккаунте на телефоне и компьютере.</p>
           </div>
 
           <section class="content-card sync-card" aria-labelledby="sync-title">
@@ -342,17 +386,7 @@
               </div>
               <span id="sync-indicator" class="sync-indicator">Только в этом браузере</span>
             </div>
-            <p>Войди с одним и тем же адресом почты на телефоне и компьютере. Перед первым переносом локальных записей приложение спросит подтверждение.</p>
-            <form id="auth-form" class="auth-form" novalidate>
-              <label for="auth-email">Электронная почта</label>
-              <input id="auth-email" type="email" autocomplete="email" required placeholder="name@example.com" />
-              <label for="auth-password">Пароль</label>
-              <input id="auth-password" type="password" autocomplete="current-password" minlength="6" required placeholder="Не менее 6 символов" />
-              <div class="data-actions">
-                <button id="auth-sign-in" class="button button-primary" type="submit">Войти</button>
-                <button id="auth-sign-up" class="button button-outline" type="button">Создать аккаунт</button>
-              </div>
-            </form>
+            <p>Используй один и тот же аккаунт на телефоне и компьютере. Перед первым переносом локальных записей приложение спросит подтверждение.</p>
             <div id="signed-in-controls" class="signed-in-controls" hidden>
               <p>Аккаунт: <strong id="signed-in-email"></strong></p>
               <div class="data-actions">
@@ -381,7 +415,7 @@
               <p class="micro-label">КАК ЭТО РАБОТАЕТ</p>
               <h2 id="data-help-title">Автосохранение и восстановление</h2>
               <ol>
-                <li>Без входа записи хранятся только в этом браузере. Для доступа с других устройств войди в один аккаунт MRZ.</li>
+                <li>Войди в один аккаунт MRZ на каждом устройстве, чтобы получать свои записи после синхронизации.</li>
                 <li>Периодически скачивай резервную копию и храни её в удобном месте.</li>
                 <li>Чтобы вернуть данные, выбери копию. Перед заменой текущих записей приложение покажет подтверждение.</li>
               </ol>

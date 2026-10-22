@@ -28,6 +28,13 @@ const BALANCE_AREAS = [
 const STATE_AREAS = ["money", "body", "skills", "mind"];
 
 const elements = {
+  welcomeScreen: document.querySelector("#welcome-screen"),
+  welcomeStatus: document.querySelector("#welcome-status"),
+  welcomeAccountActions: document.querySelector("#welcome-account-actions"),
+  welcomeRetry: document.querySelector("#welcome-retry"),
+  welcomeSignOut: document.querySelector("#welcome-sign-out"),
+  appShell: document.querySelector(".app-shell"),
+  skipLink: document.querySelector(".skip-link"),
   breadcrumb: document.querySelector("#view-breadcrumb"),
   todayLabel: document.querySelector("#today-label"),
   weekRange: document.querySelector("#week-range"),
@@ -106,6 +113,7 @@ let authLoading = false;
 let syncPending = false;
 let syncConflict = false;
 let syncTimer = null;
+let accessUnlocked = false;
 
 function dateKey(date) {
   const year = date.getFullYear();
@@ -909,6 +917,10 @@ function saveSyncMeta(fingerprint = stateFingerprint(state)) {
 function setSyncStatus(message, kind = "idle") {
   elements.syncStatus.textContent = message;
   elements.syncStatus.classList.toggle("is-error", kind === "error");
+  elements.welcomeStatus.textContent = !accessUnlocked && cloudUser && syncConflict
+    ? "В браузере и облаке разные записи. Нажми «Продолжить», чтобы выбрать версию."
+    : message;
+  elements.welcomeStatus.classList.toggle("is-error", kind === "error");
   elements.syncIndicator.classList.toggle("is-synced", kind === "synced");
   elements.syncIndicator.classList.toggle("is-error", kind === "error");
   elements.syncIndicator.textContent = {
@@ -920,10 +932,30 @@ function setSyncStatus(message, kind = "idle") {
     : "Данные сохранены в этом браузере";
 }
 
+function updateAccessView() {
+  if (cloudUser && cloudReady && !syncConflict) accessUnlocked = true;
+  const canUseApp = Boolean(cloudUser && accessUnlocked);
+  const wasHidden = elements.appShell.hidden;
+  elements.welcomeScreen.hidden = canUseApp;
+  elements.appShell.hidden = !canUseApp;
+  elements.skipLink.href = canUseApp ? "#main" : "#welcome-title";
+  elements.welcomeAccountActions.hidden = !cloudUser;
+  if (canUseApp && wasHidden) {
+    elements.appShell.classList.add("is-entering");
+    showView(location.hash.slice(1));
+  } else if (!canUseApp) {
+    elements.appShell.classList.remove("is-entering");
+    if (elements.dialog.open) elements.dialog.close();
+    if (elements.goalDialog.open) elements.goalDialog.close();
+    window.scrollTo(0, 0);
+  }
+}
+
 function updateAuthUi() {
   elements.authForm.hidden = Boolean(cloudUser);
   elements.signedInControls.hidden = !cloudUser;
   elements.signedInEmail.textContent = cloudUser?.email || "";
+  updateAccessView();
 }
 
 function adoptCloudState(row) {
@@ -944,6 +976,7 @@ function adoptCloudState(row) {
   render();
   renderCurrentState();
   setSyncStatus("Последняя версия данных загружена из облака.", "synced");
+  updateAccessView();
 }
 
 async function readCloudRow() {
@@ -1056,6 +1089,7 @@ async function reconcileCloudOnSignIn() {
 async function enterCloudSession(user) {
   if (authLoading || (cloudUser?.id === user.id && cloudReady)) return;
   authLoading = true;
+  if (cloudUser?.id !== user.id) accessUnlocked = false;
   cloudUser = user;
   cloudReady = false;
   syncConflict = false;
@@ -1068,6 +1102,7 @@ async function enterCloudSession(user) {
     setSyncStatus(error.message || "Не удалось загрузить данные аккаунта. Локальные записи сохранены.", "error");
   } finally {
     authLoading = false;
+    updateAccessView();
   }
 }
 
@@ -1107,6 +1142,7 @@ async function resolveCloudConflict() {
   } finally {
     cloudBusy = false;
     if (syncPending && !syncConflict) await flushCloudSync();
+    updateAccessView();
   }
 }
 
@@ -1152,12 +1188,15 @@ async function initCloudSync() {
     }
     await loadSupabaseLibrary();
     cloudClient = window.supabase.createClient(config.url, config.publishableKey);
+    elements.authSignIn.disabled = false;
+    elements.authSignUp.disabled = false;
     cloudClient.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_OUT") {
         cloudUser = null;
         cloudReady = false;
         syncPending = false;
         syncConflict = false;
+        accessUnlocked = false;
         updateAuthUi();
         setSyncStatus("Вы вышли из аккаунта. Записи остались в этом браузере.");
       } else if (event === "SIGNED_IN" && session?.user) {
@@ -1174,7 +1213,7 @@ async function initCloudSync() {
     elements.authPassword.disabled = true;
     elements.authSignIn.disabled = true;
     elements.authSignUp.disabled = true;
-    setSyncStatus("Синхронизация ещё настраивается. Все записи пока сохраняются в этом браузере.", "error");
+    setSyncStatus("Сервис входа временно недоступен. Проверь соединение и перезагрузи страницу.", "error");
   }
 }
 
@@ -1190,6 +1229,7 @@ function render() {
 }
 
 function showView(name) {
+  if (!accessUnlocked) return;
   const selected = ["dashboard", "analytics", "habits", "goals", "balance", "state", "data"].includes(name) ? name : "dashboard";
   document.querySelectorAll(".view").forEach((view) => {
     view.hidden = view.id !== `${selected}-view`;
@@ -1378,6 +1418,7 @@ function toggleCompletion(id, key) {
 }
 
 document.addEventListener("click", (event) => {
+  if (!accessUnlocked) return;
   const openButton = event.target.closest("[data-open-habit-dialog]");
   if (openButton) return openHabitDialog();
 
@@ -1480,10 +1521,18 @@ elements.authSignUp.addEventListener("click", async () => {
   }
 });
 
-elements.authSignOut.addEventListener("click", async () => {
+async function signOut() {
   if (!cloudClient) return;
   const { error } = await cloudClient.auth.signOut();
   if (error) setSyncStatus("Не удалось выйти из аккаунта. Попробуй ещё раз.", "error");
+}
+
+elements.authSignOut.addEventListener("click", signOut);
+elements.welcomeSignOut.addEventListener("click", signOut);
+elements.welcomeRetry.addEventListener("click", async () => {
+  if (!cloudUser) return;
+  if (syncConflict) await resolveCloudConflict();
+  else await enterCloudSession(cloudUser);
 });
 
 elements.syncNow.addEventListener("click", async () => {
@@ -1543,7 +1592,9 @@ elements.dialog.addEventListener("click", (event) => {
 elements.dialog.addEventListener("close", () => {
   editingHabitId = null;
 });
-window.addEventListener("hashchange", () => showView(location.hash.slice(1)));
+window.addEventListener("hashchange", () => {
+  if (accessUnlocked && location.hash !== "#main") showView(location.hash.slice(1));
+});
 window.addEventListener("storage", (event) => {
   if (event.key !== STORAGE_KEY) return;
   state = loadState();
@@ -1566,5 +1617,6 @@ window.setInterval(() => { void refreshCloudState(); }, 30000);
 
 render();
 renderCurrentState();
-showView(location.hash.slice(1));
+elements.authSignIn.disabled = true;
+elements.authSignUp.disabled = true;
 void initCloudSync();

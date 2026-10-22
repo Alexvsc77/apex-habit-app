@@ -587,7 +587,7 @@ a { color: inherit; }
   height: min(100svh, 900px);
   overflow: hidden;
   opacity: .88;
-  mask-image: radial-gradient(ellipse 70% 58% at 50% 42%, #000 45%, rgba(0, 0, 0, .98) 60%, transparent 100%);
+  mask-image: radial-gradient(ellipse 50% 50% at 50% 50%, #000 48%, transparent 100%);
   pointer-events: none;
 }
 
@@ -625,7 +625,7 @@ a { color: inherit; }
 
 @media (max-width: 900px) {
   .welcome-layout { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(180px, 1fr) auto auto; }
-  .welcome-portrait { right: -10%; width: 72%; opacity: .7; mask-image: radial-gradient(ellipse 78% 58% at 60% 42%, #000 40%, rgba(0, 0, 0, .95) 56%, transparent 100%); }
+  .welcome-portrait { right: -10%; width: 72%; opacity: .7; mask-image: radial-gradient(ellipse 60% 50% at 60% 50%, #000 48%, transparent 100%); }
   .welcome-intro h1 { font-size: clamp(48px, 7vw, 70px); }
 }
 
@@ -634,7 +634,7 @@ a { color: inherit; }
   .welcome-logo { font-size: 17px; }
   .welcome-logo span { font-size: 25px; }
   .welcome-header-note { font-size: 8px; letter-spacing: .09em; }
-  .welcome-portrait { top: 0; right: -27%; bottom: auto; width: 112%; height: min(68svh, 650px); opacity: .52; mask-image: radial-gradient(ellipse 83% 60% at 54% 36%, #000 40%, transparent 100%); }
+  .welcome-portrait { top: 0; right: -27%; bottom: auto; width: 112%; height: min(68svh, 650px); opacity: .52; mask-image: radial-gradient(ellipse 55% 50% at 55% 50%, #000 48%, transparent 100%); }
   .welcome-intro { padding: 72px 0 37px; }
   .welcome-intro h1 { font-size: clamp(43px, 11vw, 61px); }
   .welcome-description { max-width: 340px; margin-top: 18px; font-size: 13px; }
